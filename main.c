@@ -1,15 +1,16 @@
-/*  						DES Encryption/Decryption
- *  							Team : 5
+/*
+ *                                                DES Encryption/Decryption
+ *  							  Team : 5
  *      								          +--------------+
  *  								       	          |  64 bit Key  |
  *  								       	          +--------------+
  *  								       			|
  *  								       	     +---------------------+
- *  								       	-----|  Permuted Choice 2  |---  >>> 56 bit Key
- *  								       	|    +---------------------+  |
- *  								       	|                             |
- *  								       	|                             |
- *  								       	|                             |
+ *  								       	  ---|  Permuted Choice 1  |---  >>> 56 bit Key
+ *  								       	  |  +---------------------+  |
+ *  								       	  |                           |
+ *  								       	  |                           |
+ *  								       	  |                           |
  *      		<--32 bit->	<--32 bit->			<--28 bit->		  <--28 bit->
  *  			+----------+    +----------+                   +----------+               +----------+
  *  			|  L(i-1)  |    |  R(i-1)  |                   |  C(i-1)  |               |  D(i-1)  |
@@ -21,7 +22,7 @@
  *  			     |               |                              |                          |
  *  	        -----------------------------|                              |                          |
  *        	|	     |        +------+-------+            +--------------------+      +--------------------+
- *  		|	     |        | Expansion    |        ----|  Left Shift(s)     |      |  Left Shift(s)     |---
+ *  		|	     |        | Expansion    |        ----|  Left Shift(s)     |      |    Left Shift(s)   |---
  *  		|	     |        | Permutation  |        |   +--------------------+      +--------------------+  |
  *  		|	     |        |    (E)       |        |                 |               |                     |
  *  		|	     |        +------+-------+        |                 |               |                     |
@@ -58,15 +59,17 @@
  */
 
 #include <stdio.h>
-#include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 
+#define LOOP(i, n) for (unsigned char i = 0; i < (n); ++i)
+#define SET_BIT(output, input, i) (*output |= (((*input) >> (64 - initial_permutation_table[i])) & 1) << (63 - i))
 // ##################################################################################################################
 // Constants and Tables
 // ##################################################################################################################
 
 // Initial Permutation Table
-const int initial_permutation_table[64] = {58, 50, 42, 34, 26, 18, 10, 2,
+const unsigned char initial_permutation_table[64] = {58, 50, 42, 34, 26, 18, 10, 2,
                                            60, 52, 44, 36, 28, 20, 12, 4,
                                            62, 54, 46, 38, 30, 22, 14, 6,
                                            64, 56, 48, 40, 32, 24, 16, 8,
@@ -76,7 +79,7 @@ const int initial_permutation_table[64] = {58, 50, 42, 34, 26, 18, 10, 2,
                                            63, 55, 47, 39, 31, 23, 15, 7};
 
 // Final Permutation Table
-const int final_permutation_table[64] = {40, 8, 48, 16, 56, 24, 64, 32,
+const unsigned char final_permutation_table[64] = {40, 8, 48, 16, 56, 24, 64, 32,
                                          39, 7, 47, 15, 55, 23, 63, 31,
                                          38, 6, 46, 14, 54, 22, 62, 30,
                                          37, 5, 45, 13, 53, 21, 61, 29,
@@ -86,7 +89,7 @@ const int final_permutation_table[64] = {40, 8, 48, 16, 56, 24, 64, 32,
                                          33, 1, 41, 9, 49, 17, 57, 25};
 
 // Expansion D-box Table
-const int expansion_d_box_table[48] = {32, 1, 2, 3, 4, 5, 4, 5,
+const unsigned char expansion_d_box_table[48] = {32, 1, 2, 3, 4, 5, 4, 5,
                                        6, 7, 8, 9, 8, 9, 10, 11,
                                        12, 13, 12, 13, 14, 15, 16, 17,
                                        16, 17, 18, 19, 20, 21, 20, 21,
@@ -94,7 +97,7 @@ const int expansion_d_box_table[48] = {32, 1, 2, 3, 4, 5, 4, 5,
                                        28, 29, 28, 29, 30, 31, 32, 1};
 
 // S-box Table
-const int s_box_table[8][4][16] = {
+const unsigned char s_box_table[8][4][16] = {
         // S1
         {
                 {14, 4, 13, 1, 2, 15, 11, 8, 3, 10, 6, 12, 5, 9, 0, 7},
@@ -112,7 +115,7 @@ const int s_box_table[8][4][16] = {
         // S3
         {
                 {10, 0, 9, 14, 6, 3, 15, 5, 1, 13, 12, 7, 11, 4, 2, 8},
-                {13, 7, 0, 9 , 3, 4, 6, 10, 2, 8, 5, 14, 12, 11, 15, 1},
+                {13, 7, 0, 9 , 3, 4, 6, 10, 2, 8, 5, 14, 12, 11, 15,1},
                 {13, 6, 4, 9, 8, 15, 3, 0, 11, 1, 2, 12, 5, 10, 14, 7},
                 {1, 10, 13, 0, 6, 9, 8, 7, 4, 15, 14, 3, 11, 5, 2, 12}
         },
@@ -154,7 +157,7 @@ const int s_box_table[8][4][16] = {
 };
 
 // Straight Permutation Table
-const int straight_permutation_table[32] = {16, 7, 20, 21,
+const unsigned char straight_permutation_table[32] = {16, 7, 20, 21,
                                             29, 12, 28, 17,
                                             1, 15, 23, 26,
                                             5, 18, 31, 10,
@@ -164,7 +167,7 @@ const int straight_permutation_table[32] = {16, 7, 20, 21,
                                             22, 11, 4, 25};
 
 // Permuted Choice 1 Table
-const int permuted_choice_1_table[56] = {57, 49, 41, 33, 25, 17, 9,
+const unsigned char permuted_choice_1_table[56] = {57, 49, 41, 33, 25, 17, 9,
                                          1, 58, 50, 42, 34, 26, 18,
                                          10, 2, 59, 51, 43, 35, 27,
                                          19, 11, 3, 60, 52, 44, 36,
@@ -174,7 +177,7 @@ const int permuted_choice_1_table[56] = {57, 49, 41, 33, 25, 17, 9,
                                          21, 13, 5, 28, 20, 12, 4};
 
 // Permuted Choice 2 Table
-const int permuted_choice_2_table[48] = {14, 17, 11, 24, 1, 5,
+const unsigned char permuted_choice_2_table[48] = {14, 17, 11, 24, 1, 5,
                                          3, 28, 15, 6, 21, 10,
                                          23, 19, 12, 4, 26, 8,
                                          16, 7, 27, 20, 13, 2,
@@ -184,13 +187,13 @@ const int permuted_choice_2_table[48] = {14, 17, 11, 24, 1, 5,
                                          46, 42, 50, 36, 29, 32};
 
 // Left Shift Table
-const int left_shift_table[16] = {1, 1, 2, 2,
-                                   2, 2, 2, 2,
-                                   1, 2, 2, 2,
-                                   2, 2, 2, 1};
+const unsigned char left_shift_table[16] = {1, 1, 2, 2,
+                                  2, 2, 2, 2,
+                                  1, 2, 2, 2,
+                                  2, 2, 2, 1};
 
 // Initial Permutation Inverse Table
-const int initial_permutation_inverse_table[64] = {40, 8, 48, 16, 56, 24, 64, 32,
+const unsigned char initial_permutation_inverse_table[64] = {40, 8, 48, 16, 56, 24, 64, 32,
                                                    39, 7, 47, 15, 55, 23, 63, 31,
                                                    38, 6, 46, 14, 54, 22, 62, 30,
                                                    37, 5, 45, 13, 53, 21, 61, 29,
@@ -203,5 +206,147 @@ const int initial_permutation_inverse_table[64] = {40, 8, 48, 16, 56, 24, 64, 32
 // ##################################################################################################################
 
 
+// ##################################################################################################################
+// Function Prototypes
+// ##################################################################################################################
+
+void hex_to_bin(char *hex, char *bin);
+
+void bin_to_hex(char *bin, char *hex);
+
+void readFile(char *filename, char *buffer, unsigned char size);
+
+void writeFile(char *filename, char *buffer, unsigned char size);
+
+void initial_permutation(char *input, char *output);
+
+void final_permutation(char *input, char *output);
+
+void expansion_d_box(char *input, char *output);
+
+void straight_permutation(char *input, char *output);
+
+void permuted_choice_1(char *key, char *c, char *d);
+
+void permuted_choice_2(char *c, char *d, char *key);
+
+void left_shift(char *key, unsigned char key_size, unsigned char shift);
+
+void generate_keys(char *key, char keys[16][48]);
+
+void xor(char *a, char *b, unsigned char size);
+
+void swap(char *a, char *b, unsigned char size);
+
+void s_box(char *input, char *output);
+
+void f_function(char *right, char *key, char *output);
+
+void encrypt(char *plain_text, char keys[16][48], char *cipher_text);
+
+void decrypt(char *cipher_text, char keys[16][48], char *plain_text);
+
+// ##################################################################################################################
+
+// ##################################################################################################################
+// Main Function
+// ##################################################################################################################
+
+void main()
+{
+
+}
+
+// ##################################################################################################################
+
+// ##################################################################################################################
+// Function Definitions
+// ##################################################################################################################
+
+void hex_to_bin(char *hex, char *bin) {
+
+    const char *hex_to_bin_table[16] = {
+        "0000", "0001", "0010", "0011", "0100", "0101", "0110", "0111", // 0-7
+        "1000", "1001", "1010", "1011", "1100", "1101", "1110", "1111"  // 8-F
+    };
+
+    bin[0] = '\0';
+
+    for (int i = 0; hex[i] != '\0'; i++) {
+        char hex_digit = hex[i];
+        int index;
+
+        if (hex_digit >= '0' && hex_digit <= '9') {
+            index = hex_digit - '0';
+        } else if (hex_digit >= 'A' && hex_digit <= 'F') {
+            index = hex_digit - 'A' + 10;
+        } else if (hex_digit >= 'a' && hex_digit <= 'f') {
+            index = hex_digit - 'a' + 10;
+        } else {
+            printf("Error: Invalid hex character %c\n", hex_digit);
+            return;
+        }
+        strcat(bin, hex_to_bin_table[index]);
+    }
+}
+
+void bin_to_hex(char *bin, char *hex) {
+    int len = strlen(bin);
+    if (len % 4 != 0) {
+        printf("Error: Binary string length must be a multiple of 4.\n");
+        return;
+    }
+
+    const char bin_to_hex_table[16] = {
+        '0', '1', '2', '3', '4', '5', '6', '7',
+        '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
+    };
+
+    int hex_index = 0;
+
+    for (int i = 0; i < len; i += 4) {
+        int value = 0;
+
+        for (int j = 0; j < 4; j++) {
+            value = (value << 1) | (bin[i + j] - '0');
+        }
+
+        hex[hex_index++] = bin_to_hex_table[value];
+    }
+
+    hex[hex_index] = '\0';
+}
+
+void readFile(char *filename, char *buffer, unsigned char size) {
+    FILE *file = fopen(filename, "r");
+    if (file == NULL) {
+        printf("Error: Unable to open file %s\n", filename);
+        return;
+    }
+
+    fread(buffer, 1, size, file);
+    fclose(file);
+}
+
+void writeFile(char *filename, char *buffer, unsigned char size) {
+    FILE *file = fopen(filename, "w");
+    if (file == NULL) {
+        printf("Error: Unable to open file %s\n", filename);
+        return;
+    }
+
+    fwrite(buffer, 1, size, file);
+    fclose(file);
+}
+
+void initial_permutation(char *input, char *output) {
+    LOOP(i, 64) {
+        // Extract the bit from input using the permutation table
+        *output |= ((*input >> (64 - initial_permutation_table[i])) & 1)<< (63 - i);
+        // Set the corresponding bit in output
+        *output |= (bit << (63 - i));
+    }
+    output[64] = '\0';
+}
 
 
