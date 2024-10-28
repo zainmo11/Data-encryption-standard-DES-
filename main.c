@@ -1,17 +1,18 @@
 /*
  *                                                DES Encryption/Decryption
- *  							  Team : 5
- *      								          +--------------+
- *  								       	          |  64 bit Key  |
- *  								       	          +--------------+
- *  								       			|
- *  								       	     +---------------------+
- *  								       	  ---|  Permuted Choice 1  |---  >>> 56 bit Key
- *  								       	  |  +---------------------+  |
- *  								       	  |                           |
- *  								       	  |                           |
- *  								       	  |                           |
- *      		<--32 bit->	<--32 bit->			<--28 bit->		  <--28 bit->
+ *  							                            Team : 5
+ *
+ *      								                                      +--------------+
+ *  								                             	          |  64 bit Key  |
+ *  								                             	          +--------------+
+ *  								                             			         |
+ *  								                             	     +---------------------+
+ *  								                             	  ---|  Permuted Choice 1  |---  >>> 56 bit Key
+ *  								                             	  |  +---------------------+  |
+ *  								                             	  |                           |
+ *  								                             	  |                           |
+ *  								                             	  |                           |
+ *      		<--32 bit->	    <--32 bit->			           <--28 bit->		          <--28 bit->
  *  			+----------+    +----------+                   +----------+               +----------+
  *  			|  L(i-1)  |    |  R(i-1)  |                   |  C(i-1)  |               |  D(i-1)  |
  *  			+----------+    +----------+                   +----------+               +----------+
@@ -20,7 +21,7 @@
  *  			     |               |                              |                          |
  *  			     |               |                              |                          |
  *  			     |               |                              |                          |
- *  	        -----------------------------|                              |                          |
+ *  	    -------------------------|                              |                          |
  *        	|	     |        +------+-------+            +--------------------+      +--------------------+
  *  		|	     |        | Expansion    |        ----|  Left Shift(s)     |      |    Left Shift(s)   |---
  *  		|	     |        | Permutation  |        |   +--------------------+      +--------------------+  |
@@ -47,14 +48,14 @@
  *  		|	     |         +------+-------+       |                                                       |
  *  		|	     |                |               |                                                       |
  *  		|	     |          +-----+----+          |                                                       |
- *  		|            |----------|    XOR   |          |                                                       |
+ *  		|        |----------|    XOR   |          |                                                       |
  *  		|	                +-----+----+          |                                                       |
  *  		|	                     |                |                                                       |
- *  		|		             +                |                                                       |
+ *  		|		                 +                |                                                       |
  *  		|	                     |                |                                                       |
- *  	+----------+                   +----------+     +-------------+                                      +-------------+
- *  	|  L(i)    |                   |   R(i)   |     |    C(i)     |                                      |    D(i)     |
- *  	+----------+                   +----------+     +-------------+                                      +-------------+
+ *  	+----------+            +----------+     +-------------+                                      +-------------+
+ *  	|  L(i)    |            |   R(i)   |     |    C(i)     |                                      |    D(i)     |
+ *  	+----------+            +----------+     +-------------+                                      +-------------+
  *
  */
 
@@ -210,41 +211,41 @@ const unsigned char initial_permutation_inverse_table[64] = {40, 8, 48, 16, 56, 
 // Function Prototypes
 // ##################################################################################################################
 
-void hex_to_bin(char *hex, char *bin);
+void hex_to_bin(uint64_t hex, char *bin);
 
-void bin_to_hex(char *bin, char *hex);
+void readFile(char *filename, uint64_t *buffer);
 
-void readFile(char *filename, char *buffer, unsigned char size);
+void writeFile(char *filename, uint64_t data);
 
-void writeFile(char *filename, char *buffer, unsigned char size);
+void writeFile(char *filename, char *data);
 
-void initial_permutation(char *input, char *output);
+void initial_permutation(uint64_t input, uint64_t *output);
 
-void final_permutation(char *input, char *output);
+void final_permutation(uint64_t input, uint64_t *output);
 
-void expansion_d_box(char *input, char *output);
+void expansion_d_box(uint64_t input, uint64_t *output);
 
-void straight_permutation(char *input, char *output);
+void straight_permutation(uint64_t input, uint64_t *output);
 
-void permuted_choice_1(char *key, char *c, char *d);
+void permuted_choice_1(uint64_t key, uint64_t *c, uint64_t *d);
 
-void permuted_choice_2(char *c, char *d, char *key);
+void permuted_choice_2(uint64_t c, uint64_t d, uint64_t *key);
 
-void left_shift(char *key, unsigned char key_size, unsigned char shift);
+void left_shift(uint64_t *key, unsigned char key_size, unsigned char shift);
 
-void generate_keys(char *key, char keys[16][48]);
+void generate_keys(uint64_t key, uint64_t keys[16]);
 
-void xor(char *a, char *b, unsigned char size);
+void xor(uint64_t a, uint64_t b, uint64_t *result);
 
-void swap(char *a, char *b, unsigned char size);
+void swap(uint64_t *a, uint64_t *b);
 
-void s_box(char *input, char *output);
+void s_box(uint64_t input, uint64_t *output);
 
-void f_function(char *right, char *key, char *output);
+void f_function(uint64_t right, uint64_t key, uint64_t *output);
 
-void encrypt(char *plain_text, char keys[16][48], char *cipher_text);
+void encrypt(uint64_t plain_text, uint64_t keys[16], uint64_t *cipher_text);
 
-void decrypt(char *cipher_text, char keys[16][48], char *plain_text);
+void decrypt(uint64_t cipher_text, uint64_t keys[16], uint64_t *plain_text);
 
 // ##################################################################################################################
 
@@ -252,9 +253,16 @@ void decrypt(char *cipher_text, char keys[16][48], char *plain_text);
 // Main Function
 // ##################################################################################################################
 
-void main()
-{
 
+int main() {
+    uint64_t input = 0x123456789ABCDEF0;
+    uint64_t output;
+
+    writeFile("data.txt", input);
+    readFile("data.txt", &output);
+
+    printf("Read data: 0x%llX\n", output);
+    return 0;
 }
 
 // ##################################################################################################################
@@ -263,7 +271,7 @@ void main()
 // Function Definitions
 // ##################################################################################################################
 
-void hex_to_bin(char *hex, char *bin) {
+void hex_to_bin(uint64_t hex, char *bin) {
 
     const char *hex_to_bin_table[16] = {
         "0000", "0001", "0010", "0011", "0100", "0101", "0110", "0111", // 0-7
@@ -272,81 +280,41 @@ void hex_to_bin(char *hex, char *bin) {
 
     bin[0] = '\0';
 
-    for (int i = 0; hex[i] != '\0'; i++) {
-        char hex_digit = hex[i];
-        int index;
-
-        if (hex_digit >= '0' && hex_digit <= '9') {
-            index = hex_digit - '0';
-        } else if (hex_digit >= 'A' && hex_digit <= 'F') {
-            index = hex_digit - 'A' + 10;
-        } else if (hex_digit >= 'a' && hex_digit <= 'f') {
-            index = hex_digit - 'a' + 10;
-        } else {
-            printf("Error: Invalid hex character %c\n", hex_digit);
-            return;
-        }
+    for (int i = 60; i >= 0; i -= 4) {
+        int index = (hex >> i) & 0xF;
         strcat(bin, hex_to_bin_table[index]);
     }
 }
 
-void bin_to_hex(char *bin, char *hex) {
-    int len = strlen(bin);
-    if (len % 4 != 0) {
-        printf("Error: Binary string length must be a multiple of 4.\n");
-        return;
-    }
 
-    const char bin_to_hex_table[16] = {
-        '0', '1', '2', '3', '4', '5', '6', '7',
-        '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
-    };
-
-    int hex_index = 0;
-
-    for (int i = 0; i < len; i += 4) {
-        int value = 0;
-
-        for (int j = 0; j < 4; j++) {
-            value = (value << 1) | (bin[i + j] - '0');
-        }
-
-        hex[hex_index++] = bin_to_hex_table[value];
-    }
-
-    hex[hex_index] = '\0';
-}
-
-void readFile(char *filename, char *buffer, unsigned char size) {
-    FILE *file = fopen(filename, "r");
-    if (file == NULL) {
-        printf("Error: Unable to open file %s\n", filename);
-        return;
-    }
-
-    fread(buffer, 1, size, file);
-    fclose(file);
-}
-
-void writeFile(char *filename, char *buffer, unsigned char size) {
+void writeFile(char *filename, uint64_t data) {
     FILE *file = fopen(filename, "w");
     if (file == NULL) {
         printf("Error: Unable to open file %s\n", filename);
         return;
     }
 
-    fwrite(buffer, 1, size, file);
+    fprintf(file, "%016llX\n", data);
     fclose(file);
 }
 
-void initial_permutation(char *input, char *output) {
-    LOOP(i, 64) {
-        // Extract the bit from input using the permutation table
-        *output |= ((*input >> (64 - initial_permutation_table[i])) & 1)<< (63 - i);
-        // Set the corresponding bit in output
-        *output |= (bit << (63 - i));
+void readFile(char *filename, uint64_t *buffer) {
+    FILE *file = fopen(filename, "r");
+    if (file == NULL) {
+        printf("Error: Unable to open file %s\n", filename);
+        return;
     }
-    output[64] = '\0';
+
+    fscanf(file, "%llX", buffer);
+    fclose(file);
 }
 
+// void initial_permutation(char *input, char *output) {
+//     LOOP(i, 64) {
+//         *output |= ((*input >> (64 - initial_permutation_table[i])) & 1)<< (63 - i);
+//
+//     }
+//     output[64] = '\0';
+// }
+//
 
