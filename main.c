@@ -1,4 +1,3 @@
-// if you view from github, make index space 4 to view the code properly (https://github.com/zainmo11/Data-encryption-standard-DES-/blob/main/main.c?ts=4)
 /*  						DES Encryption/Decryption
  *  							Team : 5
  *      								          +--------------+
