@@ -288,6 +288,7 @@ void hex_to_bin(uint64_t hex, char *bin) {
     }
 }
 
+// NOTE: this doesn't work if file size is not a multiple of 64bits
 void writeFile(char *filename, uint64_t *data, size_t num_elements) {
     FILE *file = fopen(filename, "wb");
     if (file == NULL) {
