@@ -212,7 +212,7 @@ void hex_to_bin(uint64_t hex, char *bin);
 uint64_t* readFile(char *filename, size_t* num_elements);
 // void readFile(char *filename, uint64_t *buffer);
 
-void writeFile(char *filename, uint64_t *data);
+void writeFile(char *filename, uint64_t *data, size_t num_elements);
 
 // void writeFile(char *filename, char *data);
 
@@ -260,9 +260,11 @@ int main(int argc, char **argv)
     uint64_t* buffer = readFile("test", &num_elements);
     printf("No. of elements: %d\n", num_elements);
 
-    for (size_t i = 0; i < num_elements; i++) {
-        printf("%016lx\n", buffer[i]);
-    }
+    // for (size_t i = 0; i < num_elements; i++) {
+    //     printf("%016lx\n", buffer[i]);
+    // }
+
+    writeFile("output", buffer, num_elements);
 }
 
 // ##################################################################################################################
@@ -286,14 +288,27 @@ void hex_to_bin(uint64_t hex, char *bin) {
     }
 }
 
-void writeFile(char *filename, uint64_t *data) {
-    FILE *file = fopen(filename, "w");
+void writeFile(char *filename, uint64_t *data, size_t num_elements) {
+    FILE *file = fopen(filename, "wb");
     if (file == NULL) {
         printf("Error: Unable to open file %s\n", filename);
         return;
     }
+    printf("%016lx\n", data[0]);
+    printf("%hhx\n", (uint8_t*)((data[0] >> 8)));
 
-    fprintf(file, "%016llX\n", data);
+    for (int i = 0; i < num_elements; i++) {
+        for (int j = 7; j >= 0; j--) {
+            uint8_t ch = (uint8_t)(data[i] >> (j * 8));
+            size_t written = fwrite(&ch, sizeof(uint8_t), 1, file);
+            if (written != 1) {
+                perror("Error writing to file");
+                fclose(file);
+                return;
+            }
+        }
+    }
+
     fclose(file);
 }
 
