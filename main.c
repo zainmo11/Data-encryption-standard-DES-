@@ -1,7 +1,7 @@
 // if you view from github, make index space 4 to view the code properly (https://github.com/zainmo11/Data-encryption-standard-DES-/blob/main/main.c?ts=4)
 // ##################################################################################################################
 /*
- *                                                DES Encryption/Decryption
+ *                                                 DES Encryption/Decryption
  *  							                            Team : 5
  *
  *      								                                      +--------------+
@@ -255,18 +255,21 @@ void decrypt(uint64_t cipher_text, uint64_t keys[16], uint64_t *plain_text);
 
 
 int main(int argc, char **argv) {
-    if (argc != 5) {
-        printf("Usage: %s <mode> <key> <inputfile> <outputfile>\n", argv[0]);
+    if (argc != 4) {
+        printf("Usage: %s <mode> <keyfile> <inputfile> <outputfile>\n", argv[0]);
         printf("Modes: 'e' for encryption, 'd' for decryption\n");
         return 1;
     }
 
     char mode = argv[1][0];
-    uint64_t key = strtoull(argv[2], NULL, 16);
+    char *keyFile = argv[2];
     char *inputFile = argv[3];
-    char *outputFile = argv[4];
+    uint64_t key;
     uint64_t buffer;
     uint64_t result;
+
+    // Read the encryption key from the specified key file
+    readFile(keyFile, &key);
 
     // Read input file (plaintext for encryption or ciphertext for decryption)
     readFile(inputFile, &buffer);
@@ -289,7 +292,8 @@ int main(int argc, char **argv) {
     }
 
     // Write result to output file (ciphertext for encryption or plaintext for decryption)
-    writeFile(outputFile, result);
+    writeFile(argv[4], result);
+
     return 0;
 }
 
