@@ -61,6 +61,8 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <inttypes.h>
 #include <string.h>
 
 #define LOOP(i, n) for (unsigned char i = 0; i < (n); ++i)
@@ -207,11 +209,12 @@ const unsigned char left_shift_table[16] = {1, 1, 2, 2,
 void hex_to_bin(uint64_t hex, char *bin);
 
 // read and write functions
-void readFile(char *filename, uint64_t *buffer);
+uint64_t* readFile(char *filename, size_t* num_elements);
+// void readFile(char *filename, uint64_t *buffer);
 
-void writeFile(char *filename, uint64_t data);
+void writeFile(char *filename, uint64_t *data);
 
-void writeFile(char *filename, char *data);
+// void writeFile(char *filename, char *data);
 
 // permutation functions
 void initial_permutation(uint64_t input, uint64_t *output);
@@ -253,7 +256,13 @@ void decrypt(uint64_t cipher_text, uint64_t keys[16], uint64_t *plain_text);
 
 int main(int argc, char **argv)
 {
+    size_t num_elements;
+    uint64_t* buffer = readFile("test", &num_elements);
+    printf("No. of elements: %d\n", num_elements);
 
+    for (size_t i = 0; i < num_elements; i++) {
+        printf("%016lx\n", buffer[i]);
+    }
 }
 
 // ##################################################################################################################
@@ -277,7 +286,7 @@ void hex_to_bin(uint64_t hex, char *bin) {
     }
 }
 
-void writeFile(char *filename, uint64_t data) {
+void writeFile(char *filename, uint64_t *data) {
     FILE *file = fopen(filename, "w");
     if (file == NULL) {
         printf("Error: Unable to open file %s\n", filename);
@@ -288,15 +297,43 @@ void writeFile(char *filename, uint64_t data) {
     fclose(file);
 }
 
-void readFile(char *filename, uint64_t *buffer) {
-    FILE *file = fopen(filename, "r");
-    if (file == NULL) {
-        printf("Error: Unable to open file %s\n", filename);
-        return;
+uint64_t* readFile(char* filename, size_t* num_elements) {
+    FILE* fp = fopen(filename, "rb");
+    if (fp == NULL) {
+        perror("fopen");
+        return NULL;
     }
 
-    fscanf(file, "%llX", buffer);
-    fclose(file);
+    fseek(fp, 0, SEEK_END);
+    long file_size = ftell(fp);
+    printf("filesize: %ld\n", file_size);
+    rewind(fp);
+
+    // Allocate memory for the bit array
+    size_t total_bits = file_size * 8;
+    *num_elements = (total_bits + 63) / 64;  // Round up to account for partial uint64_t
+    uint64_t* bit_array = (uint64_t*)calloc(*num_elements, sizeof(uint64_t));
+    if (bit_array == NULL) {
+        perror("Error allocating memory");
+        fclose(fp);
+        return NULL;
+    }
+
+    // Read the file byte by byte and populate the bit array
+    size_t bit_index = 0;
+    uint8_t byte;
+
+    while (fread(&byte, sizeof(uint8_t), 1, fp) == 1) {
+        for (int bit = 0; bit < 8; bit++) {
+            size_t array_index = bit_index / 64;
+            size_t bit_pos = bit_index % 64;
+            bit_array[array_index] |= ((uint64_t)((byte >> (7 - bit)) & 1)) << (63 - bit_pos);
+            bit_index++;
+        }
+    }
+
+    fclose(fp);
+    return bit_array;
 }
 
 void initial_permutation(uint64_t input, uint64_t *output) {
