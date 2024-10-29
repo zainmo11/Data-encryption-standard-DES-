@@ -1,3 +1,5 @@
+// if you view from github, make index space 4 to view the code properly (https://github.com/zainmo11/Data-encryption-standard-DES-/blob/main/main.c?ts=4)
+// ##################################################################################################################
 /*
  *                                                DES Encryption/Decryption
  *  							                            Team : 5
@@ -48,10 +50,10 @@
  *  		|	     |         +------+-------+       |                                                       |
  *  		|	     |                |               |                                                       |
  *  		|	     |          +-----+----+          |                                                       |
- *  		|        |----------|    XOR   |          |                                                       |
+ *          |        |----------|    XOR   |          |                                                       |
  *  		|	                +-----+----+          |                                                       |
  *  		|	                     |                |                                                       |
- *  		|		                 +                |                                                       |
+ *          |                        +                |                                                       |
  *  		|	                     |                |                                                       |
  *  	+----------+            +----------+     +-------------+                                      +-------------+
  *  	|  L(i)    |            |   R(i)   |     |    C(i)     |                                      |    D(i)     |
@@ -61,10 +63,12 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define LOOP(i, n) for (unsigned char i = 0; i < (n); ++i)
 #define SET_BIT(output, input, i, table, x, y) (*output) |= (((input) >> (x - table[i])) & 1) << (y - i)
+
 // ##################################################################################################################
 // Constants and Tables
 // ##################################################################################################################
@@ -79,8 +83,8 @@ const unsigned char initial_permutation_table[64] = {58, 50, 42, 34, 26, 18, 10,
                                                      61, 53, 45, 37, 29, 21, 13, 5,
                                                      63, 55, 47, 39, 31, 23, 15, 7};
 
-// Initial Permutation Inverse Table
-const unsigned char initial_permutation_inverse_table[64] = {40, 8, 48, 16, 56, 24, 64, 32,
+// Final Permutation Table
+const unsigned char Final_permutation[64] = {40, 8, 48, 16, 56, 24, 64, 32,
                                                              39, 7, 47, 15, 55, 23, 63, 31,
                                                              38, 6, 46, 14, 54, 22, 62, 30,
                                                              37, 5, 45, 13, 53, 21, 61, 29,
@@ -211,7 +215,6 @@ void readFile(char *filename, uint64_t *buffer);
 
 void writeFile(char *filename, uint64_t data);
 
-void writeFile(char *filename, char *data);
 
 // permutation functions
 void initial_permutation(uint64_t input, uint64_t *output);
@@ -251,9 +254,43 @@ void decrypt(uint64_t cipher_text, uint64_t keys[16], uint64_t *plain_text);
 // ##################################################################################################################
 
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
+    if (argc != 5) {
+        printf("Usage: %s <mode> <key> <inputfile> <outputfile>\n", argv[0]);
+        printf("Modes: 'e' for encryption, 'd' for decryption\n");
+        return 1;
+    }
 
+    char mode = argv[1][0];
+    uint64_t key = strtoull(argv[2], NULL, 16);
+    char *inputFile = argv[3];
+    char *outputFile = argv[4];
+    uint64_t buffer;
+    uint64_t result;
+
+    // Read input file (plaintext for encryption or ciphertext for decryption)
+    readFile(inputFile, &buffer);
+
+    // Generate 16 keys for encryption/decryption
+    uint64_t keys[16];
+    generate_keys(key, keys);
+
+    if (mode == 'e') {
+        // Encrypt the plaintext
+        encrypt(buffer, keys, &result);
+        printf("Encrypted successfully.\n");
+    } else if (mode == 'd') {
+        // Decrypt the ciphertext
+        decrypt(buffer, keys, &result);
+        printf("Decrypted successfully.\n");
+    } else {
+        printf("Invalid mode. Use 'e' for encryption or 'd' for decryption.\n");
+        return 1;
+    }
+
+    // Write result to output file (ciphertext for encryption or plaintext for decryption)
+    writeFile(outputFile, result);
+    return 0;
 }
 
 // ##################################################################################################################
@@ -311,7 +348,7 @@ void inverse_initial_permutation(uint64_t input, uint64_t *output) {
     *output = 0;
     LOOP(i, 64) {
         // Set the i-th bit of the output to the (64 - table[i])th bit of the input
-        SET_BIT(output, input, i, initial_permutation_inverse_table, 64, 64 - 1);
+        SET_BIT(output, input, i, Final_permutation, 64, 64 - 1);
     }
 }
 
