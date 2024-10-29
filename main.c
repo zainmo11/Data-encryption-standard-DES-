@@ -210,11 +210,10 @@ const unsigned char left_shift_table[16] = {1, 1, 2, 2,
 void hex_to_bin(uint64_t hex, char *bin);
 
 // read and write functions
-uint64_t* readFile(char *filename, size_t* num_elements);
-uint64_t* readHexFile(char *filename, size_t* num_elements);
+uint64_t* readFile(char *filename, size_t* num_elements, int hex);
 // void readFile(char *filename, uint64_t *buffer);
 
-void writeFile(char *filename, uint64_t *data, size_t num_elements);
+void writeFile(char *filename, uint64_t *data, size_t num_elements, int hex);
 
 // void writeFile(char *filename, char *data);
 
@@ -259,15 +258,14 @@ void decrypt(uint64_t cipher_text, uint64_t keys[16], uint64_t *plain_text);
 int main(int argc, char **argv)
 {
     // size_t num_elements;
-    // uint64_t* buffer = readFile("test", &num_elements);
+    // uint64_t* buffer = readFile("test", &num_elements, 0);
     // printf("No. of elements: %d\n", num_elements);
-
-    // writeFile("output", buffer, num_elements);
+    // writeFile("output", buffer, num_elements, 0);
 
     size_t num_elements;
-    uint64_t* buffer = readHexFile("testhex", &num_elements);
+    uint64_t* buffer = readFile("testhex", &num_elements, 1);
     printf("No. of elements: %d\n", num_elements);
-    printf("%016lx\n", buffer[1]);
+    writeFile("output", buffer, num_elements, 1);
 }
 
 // ##################################################################################################################
@@ -292,31 +290,37 @@ void hex_to_bin(uint64_t hex, char *bin) {
 }
 
 // NOTE: this doesn't work if file size is not a multiple of 64bits
-void writeFile(char *filename, uint64_t *data, size_t num_elements) {
+void writeFile(char *filename, uint64_t *data, size_t num_elements, int hex) {
     FILE *file = fopen(filename, "wb");
     if (file == NULL) {
         printf("Error: Unable to open file %s\n", filename);
         return;
     }
     printf("%016lx\n", data[0]);
-    printf("%hhx\n", (uint8_t*)((data[0] >> 8)));
+    // printf("%hhx\n", (uint8_t*)((data[0] >> 8)));
 
-    for (int i = 0; i < num_elements; i++) {
-        for (int j = 7; j >= 0; j--) {
-            uint8_t ch = (uint8_t)(data[i] >> (j * 8));
-            size_t written = fwrite(&ch, sizeof(uint8_t), 1, file);
-            if (written != 1) {
-                perror("Error writing to file");
-                fclose(file);
-                return;
+    if (hex == 0) {
+        for (int i = 0; i < num_elements; i++) {
+            for (int j = 7; j >= 0; j--) {
+                uint8_t ch = (uint8_t)(data[i] >> (j * 8));
+                size_t written = fwrite(&ch, sizeof(uint8_t), 1, file);
+                if (written != 1) {
+                    perror("Error writing to file");
+                    fclose(file);
+                    return;
+                }
             }
+        }
+    } else {
+        for (size_t i = 0; i < num_elements; i++) {
+            fprintf(file, "%016llX", (unsigned long long)data[i]);
         }
     }
 
     fclose(file);
 }
 
-uint64_t* readFile(char* filename, size_t* num_elements) {
+uint64_t* readFile(char* filename, size_t* num_elements, int hex) {
     FILE* fp = fopen(filename, "rb");
     if (fp == NULL) {
         perror("fopen");
@@ -328,80 +332,68 @@ uint64_t* readFile(char* filename, size_t* num_elements) {
     printf("filesize: %ld\n", file_size);
     rewind(fp);
 
-    // Allocate memory for the bit array
-    size_t total_bits = file_size * 8;
-    *num_elements = (total_bits + 63) / 64;  // Round up to account for partial uint64_t
-    uint64_t* bit_array = (uint64_t*)calloc(*num_elements, sizeof(uint64_t));
-    if (bit_array == NULL) {
-        perror("Error allocating memory");
-        fclose(fp);
-        return NULL;
-    }
+    uint64_t* array;
 
-    // Read the file byte by byte and populate the bit array
-    size_t bit_index = 0;
-    uint8_t byte;
-
-    while (fread(&byte, sizeof(uint8_t), 1, fp) == 1) {
-        for (int bit = 0; bit < 8; bit++) {
-            size_t array_index = bit_index / 64;
-            size_t bit_pos = bit_index % 64;
-            bit_array[array_index] |= ((uint64_t)((byte >> (7 - bit)) & 1)) << (63 - bit_pos);
-            bit_index++;
+    if (hex == 0) {
+        // Allocate memory for the bit array
+        size_t total_bits = file_size * 8;
+        *num_elements = (total_bits + 63) / 64;  // Round up to account for partial uint64_t
+        array = (uint64_t*)calloc(*num_elements, sizeof(uint64_t));
+        if (array == NULL) {
+            perror("Error allocating memory");
+            fclose(fp);
+            return NULL;
         }
-    }
 
-    fclose(fp);
-    return bit_array;
-}
+        // Read the file byte by byte and populate the bit array
+        size_t bit_index = 0;
+        uint8_t byte;
 
-uint64_t* readHexFile(char* filename, size_t* num_elements) {
-    FILE* fp = fopen(filename, "rb");
-    if (fp == NULL) {
-        perror("fopen");
-        return NULL;
-    }
+        while (fread(&byte, sizeof(uint8_t), 1, fp) == 1) {
+            for (int bit = 0; bit < 8; bit++) {
+                size_t array_index = bit_index / 64;
+                size_t bit_pos = bit_index % 64;
+                array[array_index] |= ((uint64_t)((byte >> (7 - bit)) & 1)) << (63 - bit_pos);
+                bit_index++;
+            }
+        }
+    } else {
+        // Allocate memory for the bit array
+        size_t total_bytes = file_size / 2;
+        *num_elements = (total_bytes + 7) / 8;  // Round up to account for partial uint64_t
+        array = (uint64_t*)calloc(*num_elements, sizeof(uint64_t));
+        if (array == NULL) {
+            perror("Error allocating memory");
+            fclose(fp);
+            return NULL;
+        }
 
-    fseek(fp, 0, SEEK_END);
-    long file_size = ftell(fp);
-    printf("filesize: %ld\n", file_size);
-    rewind(fp);
+        size_t byte_index = 0;
+        uint8_t byte = 0;
+        int byte_count = 0;
+        int ch;
 
-    // Allocate memory for the bit array
-    size_t total_bytes = file_size / 2;
-    *num_elements = (total_bytes + 7) / 8;  // Round up to account for partial uint64_t
-    uint64_t* hex_array = (uint64_t*)calloc(*num_elements, sizeof(uint64_t));
-    if (hex_array == NULL) {
-        perror("Error allocating memory");
-        fclose(fp);
-        return NULL;
-    }
+        while ((ch = fgetc(fp)) != EOF) {
+            if (isxdigit(ch)) {
+                byte = (byte << 4) | (isdigit(ch) ? ch - '0' : toupper(ch) - 'A' + 10);
+                byte_count++;
 
-    size_t byte_index = 0;
-    uint8_t byte = 0;
-    int byte_count = 0;
-    int ch;
-
-    while ((ch = fgetc(fp)) != EOF) {
-        if (isxdigit(ch)) {
-            byte = (byte << 4) | (isdigit(ch) ? ch - '0' : toupper(ch) - 'A' + 10);
-            byte_count++;
-
-            // Once we have two hex characters (1 byte), store it in the array.
-            if (byte_count == 2) {
-                size_t array_index = byte_index / 8;
-                size_t byte_pos = 7 - (byte_index % 8);
-                hex_array[array_index] |= ((uint64_t)byte) << (byte_pos * 8);
-                
-                byte_index++;
-                byte_count = 0;
-                byte = 0;
+                // Once we have two hex characters (1 byte), store it in the array.
+                if (byte_count == 2) {
+                    size_t array_index = byte_index / 8;
+                    size_t byte_pos = 7 - (byte_index % 8);
+                    array[array_index] |= ((uint64_t)byte) << (byte_pos * 8);
+                    
+                    byte_index++;
+                    byte_count = 0;
+                    byte = 0;
+                }
             }
         }
     }
 
     fclose(fp);
-    return hex_array;
+    return array;
 }
 
 void initial_permutation(uint64_t input, uint64_t *output) {
