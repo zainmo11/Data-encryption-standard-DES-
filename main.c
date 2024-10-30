@@ -63,6 +63,7 @@
 
 #include <ctype.h>
 #include <inttypes.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -213,9 +214,9 @@ const unsigned char left_shift_table[16] = {1, 1, 2, 2,
 void hex_to_bin(uint64_t hex, char *bin);
 
 // read and write functions
-uint64_t* readFile(const char* filename, char hex);
+uint64_t* readFile(const char* filename, char hex, uint64_t* size);
 
-void writeFile(char *filename, const uint64_t *data, char hex);
+void writeFile(char *filename, const uint64_t *data, char hex, uint64_t size_in_blocks);
 
 
 // permutation functions
@@ -268,17 +269,21 @@ int main(int argc, char **argv) {
     char *inputFile = argv[3];
     char *outputFile = argv[4];
 
-    uint64_t result;
+    uint64_t key_size;
+    uint64_t size_in_blocks;
+
+    //NOTE: no need to free after reading, file data is stored in static buffers
+    //that are automayically destroyed before program termination
 
     // Read the encryption key from the specified key file (assuming key is 64-bit)
-    uint64_t* key_ptr = readFile(keyFile, mode);
+    // I used 'x' to represent anything other than 'e'
+    uint64_t* key_ptr = readFile(keyFile, 'x', &key_size);
     uint64_t key = key_ptr[0];
-    free(key_ptr);
-
+    printf(" Key: %" PRIx64 "\n", key);
     // Read input file (plaintext for encryption or ciphertext for decryption)
-    uint64_t* input_ptr = readFile(inputFile, mode);
-    uint64_t buffer = input_ptr[0];
-    free(input_ptr);
+    uint64_t* input_ptr = readFile(inputFile, mode, &size_in_blocks);
+    //uint64_t buffer = input_ptr[0];
+    uint64_t result[size_in_blocks];
 
     // Generate 16 keys for encryption/decryption
     uint64_t keys[16];
@@ -286,11 +291,13 @@ int main(int argc, char **argv) {
 
     if (mode == 'e') {
         // Encrypt the plaintext
-        encrypt(buffer, keys, &result);
+        for (uint64_t i = 0; i < size_in_blocks; i++)
+            encrypt(input_ptr[i], keys, &result[i]);
         printf("Encrypted successfully.\n");
     } else if (mode == 'd') {
         // Decrypt the ciphertext
-        decrypt(buffer, keys, &result);
+        for (uint64_t i = 0; i < size_in_blocks; i++)
+            decrypt(input_ptr[i], keys, &result[i]); 
         printf("Decrypted successfully.\n");
     } else {
         printf("Invalid mode. Use 'e' for encryption or 'd' for decryption.\n");
@@ -298,7 +305,7 @@ int main(int argc, char **argv) {
     }
 
     // Write result to output file (ciphertext for encryption or plaintext for decryption)
-    writeFile(outputFile, &result, mode);
+    writeFile(outputFile, result, mode, size_in_blocks);
 
     return 0;
 }
@@ -351,7 +358,7 @@ void hex_to_bin(uint64_t hex, char *bin) {
 }
 
 // NOTE: this doesn't work if file size is not a multiple of 64bits
-void writeFile(char *filename, const uint64_t *data, char hex) {
+void writeFile(char *filename, const uint64_t *data, char hex, uint64_t size_in_blocks) {
     // Open file for binary writing
     FILE *file = fopen(filename, "wb");
     if (file == NULL) {
@@ -361,7 +368,7 @@ void writeFile(char *filename, const uint64_t *data, char hex) {
 
     if (hex == 'd') {
         // Write the data in binary mode (byte-by-byte)
-        for (size_t i = 0; i < FIXED_SIZE; i++) {
+        for (size_t i = 0; i < size_in_blocks; i++) {
             // Write 8 bytes (uint64_t) in big-endian order
             for (int j = 7; j >= 0; j--) {
                 uint8_t ch = (uint8_t)(data[i] >> (j * 8));
@@ -375,7 +382,7 @@ void writeFile(char *filename, const uint64_t *data, char hex) {
         }
     } else {
         // Write the data in hexadecimal format
-        for (size_t i = 0; i < FIXED_SIZE; i++) {
+        for (size_t i = 0; i < size_in_blocks; i++) {
             // Print each 64-bit value as a 16-character hexadecimal number
             if (fprintf(file, "%016" PRIx64, data[i]) < 0) {
                 perror("Error writing hex data to file");
@@ -391,7 +398,7 @@ void writeFile(char *filename, const uint64_t *data, char hex) {
 
 
 
-uint64_t* readFile(const char* filename, char hex) {
+uint64_t* readFile(const char* filename, char hex, uint64_t* size) {
     // Open the file
     FILE* fp = fopen(filename, "rb");
     if (fp == NULL) {
@@ -418,6 +425,7 @@ uint64_t* readFile(const char* filename, char hex) {
                 bit_index++;
             }
         }
+        *size = bit_index / 64;
 
     } else {
         // Read the file as hexadecimal characters
@@ -444,7 +452,9 @@ uint64_t* readFile(const char* filename, char hex) {
                 }
             }
         }
+        *size = byte_index / 8;
     }
+    printf("File size in blocks %" PRIu64 "\n", *size);
 
     fclose(fp);
     return array; // Return the static array
@@ -566,6 +576,7 @@ void f_function(uint64_t right, uint64_t key, uint64_t *output) {
 }
 
 void encrypt(uint64_t plain_text, uint64_t keys[16], uint64_t *cipher_text) {
+    
     uint64_t ip;
     initial_permutation(plain_text, &ip);
 
