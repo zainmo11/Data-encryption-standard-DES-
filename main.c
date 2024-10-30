@@ -255,7 +255,15 @@ void decrypt(uint64_t cipher_text, uint64_t keys[16], uint64_t *plain_text);
 // ##################################################################################################################
 // Main Function
 // ##################################################################################################################
-
+void print_binary(uint64_t num) {
+    for (int i = 63; i >= 0; i--) {     // Start from the most significant bit
+        printf("%llu", (num >> i) & 1); // Shift right and mask with 1 to get each bit
+        if (i % 8 == 0) {               // Optional: Add space every 8 bits for readability
+            printf(" ");
+        }
+    }
+    printf("\n");
+}
 
 int main(int argc, char **argv) {
     if (argc != 5) {
@@ -309,8 +317,6 @@ int main(int argc, char **argv) {
 
     return 0;
 }
-
-
 
 // int main(int argc, char **argv) {
 //     size_t num_elements;
@@ -497,13 +503,15 @@ void straight_permutation(uint64_t input, uint64_t *output) {
 void permuted_choice_1(uint64_t key, uint64_t *c, uint64_t *d) {
     *c = 0;
     *d = 0;
+    
+    uint64_t total_key;
 
     LOOP(i, 28) {
         SET_BIT(c, key, i, permuted_choice_1_table, 64, 28 - 1);
     }
 
     LOOP(i, 28) {
-        SET_BIT(d, key, i + 28, permuted_choice_1_table, 64, 56 -1);
+        (*d) |= (((key) >> (64 - permuted_choice_1_table[i + 28])) & 1) << (27 - i);
     }
 }
 
@@ -520,7 +528,7 @@ void left_shift(uint64_t *key, unsigned char round) {
     unsigned char shift = left_shift_table[round];
 
     // Perform a left shift by 'shift' bits
-    *key = ((*key << shift) | (*key >> (64 - shift))) & 0xFFFFFFFFFFFFFFFF;
+    *key = ((*key << shift) & 0xFFFFFFF) | (*key >> (28 - shift));
 }
 
 void generate_keys(uint64_t key, uint64_t keys[16]) {
@@ -619,6 +627,7 @@ void decrypt(uint64_t cipher_text, uint64_t keys[16], uint64_t *plain_text) {
     *plain_text = (l << 32) | r;
     inverse_initial_permutation(*plain_text, plain_text);
 }
+
 
 
 
