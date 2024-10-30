@@ -309,7 +309,7 @@ int main(int argc, char **argv) {
 //     size_t num_elements;
 //
 //     // Call readFile and allocate memory for the buffer
-//     uint64_t* buffer = readFile("testhex", 'e');
+//     uint64_t* buffer = readFile("PlainText.txt", 'e');
 //     if (buffer == NULL) {
 //         printf("Error reading file or allocating memory.\n");
 //         return 1;  // Exit with an error code
