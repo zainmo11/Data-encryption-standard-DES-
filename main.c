@@ -61,13 +61,15 @@
  *
  */
 
+#include <ctype.h>
+#include <inttypes.h>
 #include <stdio.h>
-#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
 #define LOOP(i, n) for (unsigned char i = 0; i < (n); ++i)
 #define SET_BIT(output, input, i, table, x, y) (*output) |= (((input) >> (x - table[i])) & 1) << (y - i)
+#define FIXED_SIZE 1024
 
 // ##################################################################################################################
 // Constants and Tables
@@ -211,9 +213,9 @@ const unsigned char left_shift_table[16] = {1, 1, 2, 2,
 void hex_to_bin(uint64_t hex, char *bin);
 
 // read and write functions
-void readFile(char *filename, uint64_t *buffer);
+uint64_t* readFile(const char* filename, char hex);
 
-void writeFile(char *filename, uint64_t data);
+void writeFile(char *filename, const uint64_t *data, char hex);
 
 
 // permutation functions
@@ -255,7 +257,7 @@ void decrypt(uint64_t cipher_text, uint64_t keys[16], uint64_t *plain_text);
 
 
 int main(int argc, char **argv) {
-    if (argc != 4) {
+    if (argc != 5) {
         printf("Usage: %s <mode> <keyfile> <inputfile> <outputfile>\n", argv[0]);
         printf("Modes: 'e' for encryption, 'd' for decryption\n");
         return 1;
@@ -264,15 +266,19 @@ int main(int argc, char **argv) {
     char mode = argv[1][0];
     char *keyFile = argv[2];
     char *inputFile = argv[3];
-    uint64_t key;
-    uint64_t buffer;
+    char *outputFile = argv[4];
+
     uint64_t result;
 
-    // Read the encryption key from the specified key file
-    readFile(keyFile, &key);
+    // Read the encryption key from the specified key file (assuming key is 64-bit)
+    uint64_t* key_ptr = readFile(keyFile, mode);
+    uint64_t key = key_ptr[0];
+    free(key_ptr);
 
     // Read input file (plaintext for encryption or ciphertext for decryption)
-    readFile(inputFile, &buffer);
+    uint64_t* input_ptr = readFile(inputFile, mode);
+    uint64_t buffer = input_ptr[0];
+    free(input_ptr);
 
     // Generate 16 keys for encryption/decryption
     uint64_t keys[16];
@@ -292,12 +298,38 @@ int main(int argc, char **argv) {
     }
 
     // Write result to output file (ciphertext for encryption or plaintext for decryption)
-    writeFile(argv[4], result);
+    writeFile(outputFile, &result, mode);
 
     return 0;
 }
 
+
+
+// int main(int argc, char **argv) {
+//     size_t num_elements;
+//
+//     // Call readFile and allocate memory for the buffer
+//     uint64_t* buffer = readFile("testhex", 'e');
+//     if (buffer == NULL) {
+//         printf("Error reading file or allocating memory.\n");
+//         return 1;  // Exit with an error code
+//     }
+//
+//     // Print the buffer
+//     for (size_t i = 0; i < 128; i++) {
+//         printf("%016llx\n", buffer[i]);
+//     }
+//
+//     // Write the buffer to an output file in hex format
+//     writeFile("output", buffer, 'e');
+//
+//     // Free allocated memory
+//     free(buffer);
+//
+//     return 0;  // Return success
+// }
 // ##################################################################################################################
+
 
 // ##################################################################################################################
 // Function Definitions
@@ -318,27 +350,107 @@ void hex_to_bin(uint64_t hex, char *bin) {
     }
 }
 
-void writeFile(char *filename, uint64_t data) {
-    FILE *file = fopen(filename, "w");
+// NOTE: this doesn't work if file size is not a multiple of 64bits
+void writeFile(char *filename, const uint64_t *data, char hex) {
+    // Open file for binary writing
+    FILE *file = fopen(filename, "wb");
     if (file == NULL) {
         printf("Error: Unable to open file %s\n", filename);
         return;
     }
 
-    fprintf(file, "%016llX\n", data);
-    fclose(file);
-}
-
-void readFile(char *filename, uint64_t *buffer) {
-    FILE *file = fopen(filename, "r");
-    if (file == NULL) {
-        printf("Error: Unable to open file %s\n", filename);
-        return;
+    if (hex == 'd') {
+        // Write the data in binary mode (byte-by-byte)
+        for (size_t i = 0; i < FIXED_SIZE; i++) {
+            // Write 8 bytes (uint64_t) in big-endian order
+            for (int j = 7; j >= 0; j--) {
+                uint8_t ch = (uint8_t)(data[i] >> (j * 8));
+                size_t written = fwrite(&ch, sizeof(uint8_t), 1, file);
+                if (written != 1) {
+                    perror("Error writing to file");
+                    fclose(file);
+                    return;
+                }
+            }
+        }
+    } else {
+        // Write the data in hexadecimal format
+        for (size_t i = 0; i < FIXED_SIZE; i++) {
+            // Print each 64-bit value as a 16-character hexadecimal number
+            if (fprintf(file, "%016" PRIx64, data[i]) < 0) {
+                perror("Error writing hex data to file");
+                fclose(file);
+                return;
+            }
+        }
     }
 
-    fscanf(file, "%llX", buffer);
+    // Close the file
     fclose(file);
 }
+
+
+
+uint64_t* readFile(const char* filename, char hex) {
+    // Open the file
+    FILE* fp = fopen(filename, "rb");
+    if (fp == NULL) {
+        perror("Error opening file");
+        return NULL;
+    }
+
+    // Allocate a fixed size for the array
+    static uint64_t array[FIXED_SIZE]; // Static array to maintain its state
+    for (size_t i = 0; i < FIXED_SIZE; i++) {
+        array[i] = 0; // Initialize the array to zero
+    }
+
+    if (hex == 'e') {
+        // Read the file byte by byte in binary mode
+        size_t bit_index = 0;
+        uint8_t byte;
+        while (fread(&byte, sizeof(uint8_t), 1, fp) == 1 && bit_index < FIXED_SIZE * 64) {
+            for (int bit = 0; bit < 8; bit++) {
+                if (bit_index >= FIXED_SIZE * 64) break; // Prevent overflow
+                size_t array_index = bit_index / 64;
+                size_t bit_pos = bit_index % 64;
+                array[array_index] |= ((uint64_t)((byte >> (7 - bit)) & 1)) << (63 - bit_pos);
+                bit_index++;
+            }
+        }
+
+    } else {
+        // Read the file as hexadecimal characters
+        size_t byte_index = 0;
+        uint8_t byte = 0;
+        int byte_count = 0;
+        int ch;
+
+        while ((ch = fgetc(fp)) != EOF && byte_index < FIXED_SIZE * 8) {
+            if (isxdigit(ch)) {
+                byte = (byte << 4) | (isdigit(ch) ? ch - '0' : toupper(ch) - 'A' + 10);
+                byte_count++;
+
+                // Store byte once we have two hex digits
+                if (byte_count == 2) {
+                    size_t array_index = byte_index / 8;
+                    if (array_index >= FIXED_SIZE) break; // Prevent overflow
+                    size_t byte_pos = 7 - (byte_index % 8);
+                    array[array_index] |= ((uint64_t)byte) << (byte_pos * 8);
+
+                    byte_index++;
+                    byte_count = 0;
+                    byte = 0;
+                }
+            }
+        }
+    }
+
+    fclose(fp);
+    return array; // Return the static array
+}
+
+
 
 void initial_permutation(uint64_t input, uint64_t *output) {
     *output = 0;
