@@ -1,8 +1,15 @@
 // if you view from github, make index space 4 to view the code properly (https://github.com/zainmo11/Data-encryption-standard-DES-/blob/main/main.c?ts=4)
 // ##################################################################################################################
-/*
- *                                                 DES Encryption/Decryption
- *  							                            Team : 5
+/*                                            -------------------------------------
+ *                                            |     DES Encryption/Decryption     |
+ *  							              |              Team : 28            |
+ *  							              |   Abdelrhman Zain Mohamed 2101646 |
+ *  							              |   Abdelrhman Atef Saad    2101645 |
+ *  							              |  Mahmoud Hamdy Mohamed    2001300 |
+ *                                            |  Mohamed Adham Mohamed    2001184 |
+ *  							              |  Yassa Sfen Ayed Helmy    2001307 |
+ *  							              -------------------------------------
+ *
  *
  *      								                                      +--------------+
  *  								                             	          |  64 bit Key  |
@@ -66,7 +73,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #define LOOP(i, n) for (unsigned char i = 0; i < (n); ++i)
 #define SET_BIT(output, input, i, table, x, y) (*output) |= (((input) >> (x - table[i])) & 1) << (y - i)
@@ -210,9 +216,6 @@ const unsigned char left_shift_table[16] = {1, 1, 2, 2,
 // Function Prototypes
 // ##################################################################################################################
 
-// utility functions
-void hex_to_bin(uint64_t hex, char *bin);
-
 // read and write functions
 uint64_t* readFile(const char* filename, char hex, uint64_t* size);
 
@@ -255,15 +258,6 @@ void decrypt(uint64_t cipher_text, uint64_t keys[16], uint64_t *plain_text);
 // ##################################################################################################################
 // Main Function
 // ##################################################################################################################
-void print_binary(uint64_t num) {
-    for (int i = 63; i >= 0; i--) {     // Start from the most significant bit
-        printf("%llu", (num >> i) & 1); // Shift right and mask with 1 to get each bit
-        if (i % 8 == 0) {               // Optional: Add space every 8 bits for readability
-            printf(" ");
-        }
-    }
-    printf("\n");
-}
 
 int main(int argc, char **argv) {
     if (argc != 5) {
@@ -287,10 +281,9 @@ int main(int argc, char **argv) {
     // I used 'x' to represent anything other than 'e'
     uint64_t* key_ptr = readFile(keyFile, 'x', &key_size);
     uint64_t key = key_ptr[0];
-    printf(" Key: %" PRIx64 "\n", key);
+
     // Read input file (plaintext for encryption or ciphertext for decryption)
     uint64_t* input_ptr = readFile(inputFile, mode, &size_in_blocks);
-    //uint64_t buffer = input_ptr[0];
     uint64_t result[size_in_blocks];
 
     // Generate 16 keys for encryption/decryption
@@ -318,29 +311,6 @@ int main(int argc, char **argv) {
     return 0;
 }
 
-// int main(int argc, char **argv) {
-//     size_t num_elements;
-//
-//     // Call readFile and allocate memory for the buffer
-//     uint64_t* buffer = readFile("PlainText.txt", 'e');
-//     if (buffer == NULL) {
-//         printf("Error reading file or allocating memory.\n");
-//         return 1;  // Exit with an error code
-//     }
-//
-//     // Print the buffer
-//     for (size_t i = 0; i < 128; i++) {
-//         printf("%016llx\n", buffer[i]);
-//     }
-//
-//     // Write the buffer to an output file in hex format
-//     writeFile("output", buffer, 'e');
-//
-//     // Free allocated memory
-//     free(buffer);
-//
-//     return 0;  // Return success
-// }
 // ##################################################################################################################
 
 
@@ -348,20 +318,6 @@ int main(int argc, char **argv) {
 // Function Definitions
 // ##################################################################################################################
 
-void hex_to_bin(uint64_t hex, char *bin) {
-
-    const char *hex_to_bin_table[16] = {
-        "0000", "0001", "0010", "0011", "0100", "0101", "0110", "0111", // 0-7
-        "1000", "1001", "1010", "1011", "1100", "1101", "1110", "1111"  // 8-F
-    };
-
-    bin[0] = '\0';
-
-    for (int i = 60; i >= 0; i -= 4) {
-        int index = (hex >> i) & 0xF;
-        strcat(bin, hex_to_bin_table[index]);
-    }
-}
 
 // NOTE: this doesn't work if file size is not a multiple of 64bits
 void writeFile(char *filename, const uint64_t *data, char hex, uint64_t size_in_blocks) {
@@ -413,9 +369,9 @@ uint64_t* readFile(const char* filename, char hex, uint64_t* size) {
     }
 
     // Allocate a fixed size for the array
-    static uint64_t array[FIXED_SIZE]; // Static array to maintain its state
+    static uint64_t array[FIXED_SIZE];
     for (size_t i = 0; i < FIXED_SIZE; i++) {
-        array[i] = 0; // Initialize the array to zero
+        array[i] = 0;
     }
 
     if (hex == 'e') {
@@ -423,7 +379,7 @@ uint64_t* readFile(const char* filename, char hex, uint64_t* size) {
         size_t bit_index = 0;
         uint8_t byte;
         while (fread(&byte, sizeof(uint8_t), 1, fp) == 1 && bit_index < FIXED_SIZE * 64) {
-            for (int bit = 0; bit < 8; bit++) {
+            LOOP(bit, 8) {
                 if (bit_index >= FIXED_SIZE * 64) break; // Prevent overflow
                 size_t array_index = bit_index / 64;
                 size_t bit_pos = bit_index % 64;
@@ -460,8 +416,6 @@ uint64_t* readFile(const char* filename, char hex, uint64_t* size) {
         }
         *size = byte_index / 8;
     }
-    printf("File size in blocks %" PRIu64 "\n", *size);
-
     fclose(fp);
     return array; // Return the static array
 }
@@ -503,8 +457,6 @@ void straight_permutation(uint64_t input, uint64_t *output) {
 void permuted_choice_1(uint64_t key, uint64_t *c, uint64_t *d) {
     *c = 0;
     *d = 0;
-    
-    uint64_t total_key;
 
     LOOP(i, 28) {
         SET_BIT(c, key, i, permuted_choice_1_table, 64, 28 - 1);
